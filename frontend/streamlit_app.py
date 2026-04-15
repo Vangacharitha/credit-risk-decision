@@ -2,7 +2,8 @@ import streamlit as st
 import requests
 import pandas as pd
 
-BACKEND_URL = "http://127.0.0.1:8001"
+import os
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8001")
 REQUEST_TIMEOUT = 30
 
 st.set_page_config(page_title="Credit Risk Platform", page_icon="💳", layout="wide")
