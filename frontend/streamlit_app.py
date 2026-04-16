@@ -3,8 +3,11 @@ import requests
 import pandas as pd
 
 import os
+import time
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8001")
 REQUEST_TIMEOUT = 30
+MAX_RETRIES = 3
+RETRY_BACKOFF_SECONDS = 1.0
 
 st.set_page_config(page_title="Credit Risk Platform", page_icon="💳", layout="wide")
 
@@ -99,24 +102,52 @@ st.markdown(
 )
 
 
-def safe_get(path: str):
-    try:
-        resp = requests.get(f"{BACKEND_URL}{path}", timeout=REQUEST_TIMEOUT)
-        if resp.status_code != 200:
+def _request_with_retry(method: str, path: str, payload=None):
+    url = f"{BACKEND_URL}{path}"
+    last_error = None
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            if method == "GET":
+                resp = requests.get(url, timeout=REQUEST_TIMEOUT)
+            else:
+                resp = requests.post(url, json=payload, timeout=REQUEST_TIMEOUT)
+
+            if resp.status_code == 200:
+                return resp.json(), None
+
+            # Retry only on rate limit errors (429)
+            if resp.status_code == 429 and attempt < MAX_RETRIES - 1:
+                retry_after_header = resp.headers.get("Retry-After")
+                sleep_for = RETRY_BACKOFF_SECONDS * (2 ** attempt)
+
+                if retry_after_header:
+                    try:
+                        sleep_for = max(float(retry_after_header), sleep_for)
+                    except ValueError:
+                        pass
+
+                time.sleep(sleep_for)
+                continue
+
             return None, f"{resp.status_code} - {resp.text}"
-        return resp.json(), None
-    except Exception as err:
-        return None, str(err)
+
+        except Exception as err:
+            last_error = str(err)
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(RETRY_BACKOFF_SECONDS * (2 ** attempt))
+                continue
+            return None, last_error
+
+    return None, last_error or "Unknown request error"
+
+
+def safe_get(path: str):
+    return _request_with_retry("GET", path)
 
 
 def safe_post(path: str, payload=None):
-    try:
-        resp = requests.post(f"{BACKEND_URL}{path}", json=payload, timeout=REQUEST_TIMEOUT)
-        if resp.status_code != 200:
-            return None, f"{resp.status_code} - {resp.text}"
-        return resp.json(), None
-    except Exception as err:
-        return None, str(err)
+    return _request_with_retry("POST", path, payload)
 
 
 def decision_pill(decision: str) -> str:
