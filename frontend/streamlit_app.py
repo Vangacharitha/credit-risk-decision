@@ -5,7 +5,7 @@ import pandas as pd
 import os
 import time
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8001")
-REQUEST_TIMEOUT = 30
+REQUEST_TIMEOUT = 90
 MAX_RETRIES = 3
 RETRY_BACKOFF_SECONDS = 1.0
 
