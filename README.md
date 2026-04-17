@@ -181,8 +181,3 @@ Stores:
 - Timestamp  
 
 ---
-
-## Notes
-
-- Built for academic / demo purposes  
-- Extend with authentication, CI/CD, and monitoring for production use  
